@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="page-section">
+  <h2>Carbon Summary</h2>
+
+  <div class="summary-box">
+    <p><strong>Total CO₂ Emissions:</strong>
+      {{ total.total_co2 | round(2) }} kg
+    </p>
+  </div>
+
+  <table class="energy-table">
+    <tr>
+      <th>Activity</th>
+      <th>Amount</th>
+      <th>CO₂ (kg)</th>
+    </tr>
+
+    {% for row in records %}
+    <tr>
+      <td>{{ row.activity }}</td>
+      <td>{{ row.amount }} {{ row.unit }}</td>
+      <td>{{ row.co2_kg | round(2) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% endblock %}

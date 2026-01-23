@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="page-section">
+  <h2>Energy Usage Calculator</h2>
+
+  <form method="POST" class="energy-form">
+    <input type="text" name="appliance" placeholder="Appliance name" required>
+
+    <input type="number" step="0.1" name="watts" placeholder="Power (Watts)" required>
+
+    <input type="number" step="0.1" name="hours" placeholder="Hours per day" required>
+
+    <button type="submit">Calculate</button>
+  </form>
+</section>
+
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="page-section">
+  <h2>Carbon Footprint Calculator</h2>
+
+  <form method="POST" class="energy-form">
+    <select name="activity" required>
+      <option value="electricity">Electricity (kWh)</option>
+      <option value="car">Car Travel (km)</option>
+      <option value="flight">Flight (km)</option>
+    </select>
+
+    <input type="number" step="0.1" name="amount" placeholder="Amount used" required>
+
+    <button type="submit">Calculate CO₂</button>
+  </form>
+</section>
+
+{% endblock %}

@@ -1,0 +1,250 @@
+html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+
+main {
+    flex: 1;
+}
+
+
+body {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  color: #000000;
+  font-family: 'Times New Roman', Times, serif;
+}
+
+footer {
+    text-align: center;
+    padding: 10px;
+    background-color: #526847;
+    color: #bfe9c8;
+  }
+
+ul {
+list-style-type: none;
+margin: 0;
+padding: 0;
+background-color: #526847;
+
+display: flex;          /* enables flexbox */
+justify-content: center; /* centers the items horizontally */
+align-items: center;     /* vertically centers them (optional) */
+}
+
+
+ul li a {
+display: block;
+color: #ffffff;
+text-align: center;
+padding: 14px 16px;
+text-decoration: none;
+}
+
+
+ul li a:hover {
+background-color: #3B2F32;
+}
+
+
+.nav_logo img {
+  width:40px;
+  border-radius: 19px;
+}
+
+.banner_img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  
+}
+
+.page_heading_text{
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 3%;
+}
+
+.nav-link-login-link, .nav-link-register-link {
+  color: #ffffff;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.home_page_text{
+  padding: 4%;
+  
+}
+
+.text_box {
+  background-color: #d9f1c1; /* soft, clean */
+  border-radius: 20px;       /* rounded edges */
+  padding: 30px; 
+  max-width: 95%;
+  margin: 0 auto;            /*centers it */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.text_box p {
+  line-height: 1.6;
+}
+
+.home_page_text{
+  padding:1%
+}
+
+.intro_heading{
+  text-align: center;
+  padding-top: 2%;
+}
+
+
+/* Gallery container */
+div.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;      /* center the items */
+  gap: 20px;                    /* spacing between items */
+  padding: 20px 0;
+  max-width: 1200px;            /* keeps gallery nicely centered */
+  margin: 0 auto;               /* centers the whole gallery block */
+}
+
+/* Individual gallery cards */
+div.gallery-item {
+  background-color: #ecf3e4;    /* soft neutral to match your site */
+  border-radius: 10px;
+  overflow: hidden;
+  width: 260px;                 /* bigger gallery items */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: transform 0.2s ease;
+}
+
+div.gallery-item:hover {
+  transform: scale(1.03);       /* subtle hover effect */
+}
+
+/* Images */
+div.gallery-item img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;            /* crops images nicely */
+}
+
+/* Description text */
+div.gallery-item .desc {
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  color: #254844;               /* matches your Rolsa palette */
+}
+
+
+
+.news_item {
+  position: relative;          /* allows overlay + text to sit on top */
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  /* box-shadow: 0 2px 6px rgba(0,0,0,0.15); */
+  padding:10px;
+}
+
+/* Full-width image */
+.news_item img {
+  width: 100%;
+  height: 450px;
+  object-fit: cover;
+}
+
+/* Dark overlay */
+.news_item .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  background: linear-gradient(
+      rgba(0,0,0,0.4),
+      rgba(0,0,0,0.6)
+  );
+  opacity: 1;
+}
+
+/* Text on top of the image */
+.news_item .news_text {
+  position: absolute;
+  bottom: 30px;
+  left: 40px;
+  color: white;
+  z-index: 2;
+}
+
+.news_item .news_text h2 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.news_item .news_text p {
+  margin-top: 5px;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.page-section {
+  max-width: 700px;
+  margin: 60px auto;
+  padding: 20px;
+}
+
+.energy-form input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border-radius: 25px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+}
+
+.energy-form button {
+  padding: 12px 30px;
+  border-radius: 25px;
+  border: none;
+  background-color: #000;
+  color: #fff;
+  cursor: pointer;
+}
+
+.summary-box {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+}
+
+.energy-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.energy-table th,
+.energy-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+
+
+
+/* Colours */
+/* #6D8973 ------------ Lightest*/ 
+/* CDD8AE */
+/* A2B65A */
+/* 656E1F */
+/*  ----------------- Darkest*/
