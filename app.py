@@ -267,7 +267,7 @@ def send_email(to_email, subject, body):
         smtp.send_message(msg)
 
 
-
+#This setup up the database
 
 
 
