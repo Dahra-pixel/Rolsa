@@ -3,15 +3,27 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
 from email.message import EmailMessage
+from flask_mail import Mail, Message
+app = Flask(__name__)
+app.secret_key = "super_secret_key_change_later"
+DATABASE = "database.db"
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your_email@gmail.com'
+app.config['MAIL_PASSWORD'] = 'your_app_password'
+app.config['MAIL_DEFAULT_SENDER'] = 'your_email@gmail.com'
+
+mail = Mail(app)
+
 
 EMAIL_ADDRESS = "yourprojectemail@gmail.com"
 EMAIL_PASSWORD = "your_app_password"
 
 
 
-app = Flask(__name__)
-app.secret_key = "super_secret_key_change_later"
-DATABASE = "database.db"
+
 
 
 # ---------------- DATABASE ----------------
@@ -103,6 +115,7 @@ def carbon_summary():
         records=records,
         total=total
     )
+
 
 
 
@@ -310,6 +323,43 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+@app.route("/booking", methods=["GET", "POST"])
+def booking():
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        service = request.form["service"]
+        date = request.form["date"]
+        time = request.form["time"]
+
+        msg = Message(
+            subject="Your Booking Confirmation – Rolsa",
+            recipients=[email]
+        )
+
+        msg.body = f"""
+Hi {name},
+
+Your {service} has been successfully booked.
+
+Date: {date}
+Time: {time}
+
+Thank you for choosing Rolsa.
+We look forward to seeing you.
+
+— Aurora Team
+        """
+
+        mail.send(msg)
+
+        return render_template("booking.html", show_modal=True)
+
+    return render_template("booking.html")
+
+
 
 
 
