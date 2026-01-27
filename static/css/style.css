@@ -58,6 +58,48 @@ ul li a:hover {
     border-radius: 19px;
 }
 
+/* RIGHT SIDE AUTH BUTTONS */
+.nav-auth {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+    padding-right: 20px;
+}
+
+/* Button base */
+.nav-btn {
+    padding: 8px 18px;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+/* Login */
+.login-btn {
+    background-color: transparent;
+    border: 1.5px solid #bfe9c8;
+}
+
+.login-btn:hover {
+    background-color: #bfe9c8;
+    color: #254844 !important;
+}
+
+/* Register = main CTA */
+.register-btn {
+    background-color: transparent;
+    color: #254844 !important;
+    border: 1.5px solid #bfe9c8;
+}
+
+.register-btn:hover {
+    background-color: #c2e6a3;
+    transform: translateY(-1px);
+}
+
+
+
+
 /* Banners, text boxes, gallery, news, forms, etc. */
 /* (Your original CSS continues unchanged below) */
 
