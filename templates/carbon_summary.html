@@ -27,4 +27,13 @@
   </table>
 </section>
 
+<!-- Sending email summaries -->
+<form method="POST" action="{{ url_for('email_carbon_summary') }}">
+  <button class="btn btn-success mt-3">
+    Email Carbon Summary
+  </button>
+</form>
+
+
+
 {% endblock %}

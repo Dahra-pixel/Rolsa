@@ -24,6 +24,10 @@
     </tr>
     {% endfor %}
   </table>
+
+  <form method="POST" action="{{ url_for('email_energy_summary') }}">
+    <button type="submit" class="btn-primary">Email Energy Summary</button>
+  </form>
 </section>
 
 {% endblock %}

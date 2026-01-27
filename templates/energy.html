@@ -2,17 +2,33 @@
 {% block content %}
 
 <section class="page-section">
-  <h2>Energy Usage Calculator</h2>
+  <h2>Energy Summary</h2>
 
-  <form method="POST" class="energy-form">
-    <input type="text" name="appliance" placeholder="Appliance name" required>
+  <div class="summary-box">
+    <p><strong>Total Daily Usage:</strong> {{ totals.total_daily | round(2) }} kWh</p>
+    <p><strong>Total Monthly Usage:</strong> {{ totals.total_monthly | round(2) }} kWh</p>
+  </div>
 
-    <input type="number" step="0.1" name="watts" placeholder="Power (Watts)" required>
+  <table class="energy-table">
+    <tr>
+      <th>Appliance</th>
+      <th>Daily (kWh)</th>
+      <th>Monthly (kWh)</th>
+    </tr>
+    {% for row in records %}
+    <tr>
+      <td>{{ row.appliance }}</td>
+      <td>{{ row.daily_kwh | round(2) }}</td>
+      <td>{{ row.monthly_kwh | round(2) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
 
-    <input type="number" step="0.1" name="hours" placeholder="Hours per day" required>
-
-    <button type="submit">Calculate</button>
+  <!-- Email summary button -->
+  <form method="POST" action="{{ url_for('email_energy_summary') }}">
+    <button type="submit" class="btn-primary">Email Energy Summary</button>
   </form>
+
 </section>
 
 {% endblock %}

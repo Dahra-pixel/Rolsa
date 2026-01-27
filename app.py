@@ -1,30 +1,22 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-import smtplib
-from email.message import EmailMessage
 from flask_mail import Mail, Message
+
+# ---------------- APP SETUP ----------------
 app = Flask(__name__)
 app.secret_key = "super_secret_key_change_later"
 DATABASE = "database.db"
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your_email@gmail.com'
-app.config['MAIL_PASSWORD'] = 'your_app_password'
-app.config['MAIL_DEFAULT_SENDER'] = 'your_email@gmail.com'
+# ---------------- MAIL CONFIG ----------------
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USERNAME"] = "your_email@gmail.com"
+app.config["MAIL_PASSWORD"] = "your_app_password"
+app.config["MAIL_DEFAULT_SENDER"] = "your_email@gmail.com"
 
 mail = Mail(app)
-
-
-EMAIL_ADDRESS = "yourprojectemail@gmail.com"
-EMAIL_PASSWORD = "your_app_password"
-
-
-
-
-
 
 # ---------------- DATABASE ----------------
 def get_db_connection():
@@ -32,43 +24,94 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-
-# ---------------- ROUTES ----------------
+# ---------------- BASIC PAGES ----------------
 @app.route("/")
 def home():
     return render_template("home.html")
-
 
 @app.route("/about")
 def about():
     return render_template("about.html")
 
-
 @app.route("/products")
 def products():
     return render_template("products.html")
-
 
 @app.route("/news")
 def news():
     return render_template("news.html")
 
-
 @app.route("/contact")
 def contact():
     return render_template("contact.html")
 
+# ---------------- ENERGY ----------------
+@app.route("/energy")
+def energy():
+    conn = get_db_connection()
+    records = conn.execute("SELECT * FROM energy_usage").fetchall()
+    totals = conn.execute("""
+        SELECT 
+            SUM(daily_kwh) AS total_daily,
+            SUM(monthly_kwh) AS total_monthly
+        FROM energy_usage
+    """).fetchone()
+    conn.close()
+    
+    return render_template("energy.html", records=records, totals=totals)
 
+
+@app.route("/email-energy", methods=["POST"])
+def email_energy_summary():
+    conn = get_db_connection()
+
+    records = conn.execute("SELECT * FROM energy_usage").fetchall()
+    totals = conn.execute("""
+        SELECT 
+            SUM(daily_kwh) AS total_daily,
+            SUM(monthly_kwh) AS total_monthly
+        FROM energy_usage
+    """).fetchone()
+
+    conn.close()
+
+    body = (
+        f"Energy Usage Summary\n\n"
+        f"Daily Total: {round(totals['total_daily'] or 0, 2)} kWh\n"
+        f"Monthly Total: {round(totals['total_monthly'] or 0, 2)} kWh\n\n"
+    )
+
+    for r in records:
+        body += (
+            f"{r['appliance']} → "
+            f"{round(r['daily_kwh'], 2)} kWh/day, "
+            f"{round(r['monthly_kwh'], 2)} kWh/month\n"
+        )
+
+    msg = Message(
+        subject="Your Energy Usage Summary",
+        recipients=[app.config["MAIL_USERNAME"]],
+        body=body
+    )
+
+    mail.send(msg)
+    flash("Energy summary emailed successfully")
+    return redirect(url_for("energy"))
+
+# ---------------- CARBON ----------------
 EMISSION_FACTORS = {
-    "electricity": 0.233,   # kg CO2 per kWh (UK average)
-    "car": 0.171,           # kg CO2 per km
-    "flight": 0.255         # kg CO2 per km
+    "electricity": 0.233,
+    "car": 0.171,
+    "flight": 0.255
 }
 
-
-# ---------------- CARBON CALCULATOR ----------------
 @app.route("/carbon", methods=["GET", "POST"])
 def carbon():
+    conn = get_db_connection()
+    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
+    total = conn.execute("SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint").fetchone()
+    conn.close()
+
     if request.method == "POST":
         activity = request.form["activity"]
         amount = float(request.form["amount"])
@@ -77,49 +120,53 @@ def carbon():
         co2_kg = amount * factor
 
         conn = get_db_connection()
-        conn.execute(
-            """
+        conn.execute("""
             INSERT INTO carbon_footprint (activity, amount, unit, co2_kg)
             VALUES (?, ?, ?, ?)
-            """,
-            (
-                activity,
-                amount,
-                "km" if activity != "electricity" else "kWh",
-                co2_kg
-            )
-        )
+        """, (
+            activity,
+            amount,
+            "kWh" if activity == "electricity" else "km",
+            co2_kg
+        ))
         conn.commit()
         conn.close()
 
-        return redirect(url_for("carbon_summary"))
+        return redirect(url_for("carbon"))
 
-    return render_template("carbon.html")
+    return render_template("carbon.html", records=records, total=total)
 
 
-@app.route("/carbon-summary")
-def carbon_summary():
+@app.route("/email-carbon", methods=["POST"])
+def email_carbon_summary():
     conn = get_db_connection()
-    records = conn.execute(
-        "SELECT * FROM carbon_footprint ORDER BY created_at DESC"
-    ).fetchall()
 
+    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
     total = conn.execute(
         "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
     ).fetchone()
 
     conn.close()
 
-    return render_template(
-        "carbon_summary.html",
-        records=records,
-        total=total
+    body = f"Carbon Footprint Summary\n\nTotal CO₂: {round(total['total_co2'] or 0, 2)} kg\n\n"
+
+    for r in records:
+        body += (
+            f"{r['activity']} - {r['amount']} {r['unit']} → "
+            f"{round(r['co2_kg'], 2)} kg\n"
+        )
+
+    msg = Message(
+        subject="Your Carbon Footprint Summary",
+        recipients=[app.config["MAIL_USERNAME"]],
+        body=body
     )
 
+    mail.send(msg)
+    flash("Carbon summary emailed successfully")
+    return redirect(url_for("carbon"))
 
-
-
-# ---------------- REGISTER ----------------
+# ---------------- AUTH ----------------
 @app.route("/register", methods=["POST"])
 def register():
     name = request.form["name"]
@@ -131,13 +178,10 @@ def register():
 
     conn = get_db_connection()
     try:
-        conn.execute(
-            """
+        conn.execute("""
             INSERT INTO users (name, email, phone, password_hash)
             VALUES (?, ?, ?, ?)
-            """,
-            (name, email, phone, password_hash)
-        )
+        """, (name, email, phone, password_hash))
         conn.commit()
         flash("Account created successfully")
     except sqlite3.IntegrityError:
@@ -147,8 +191,6 @@ def register():
 
     return redirect(url_for("home"))
 
-
-# ---------------- LOGIN ----------------
 @app.route("/login", methods=["POST"])
 def login():
     email = request.form["email"]
@@ -167,164 +209,7 @@ def login():
 
     return redirect(url_for("home"))
 
-
-# ---------------- ENERGY TOOL ----------------
-@app.route("/energy", methods=["GET", "POST"])
-def energy():
-    if request.method == "POST":
-        appliance = request.form["appliance"]
-        watts = float(request.form["watts"])
-        hours = float(request.form["hours"])
-
-        daily_kwh = (watts * hours) / 1000
-        monthly_kwh = daily_kwh * 30
-
-        conn = get_db_connection()
-        conn.execute(
-            """
-            INSERT INTO energy_usage (appliance, watts, hours, daily_kwh, monthly_kwh)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (appliance, watts, hours, daily_kwh, monthly_kwh)
-        )
-        conn.commit()
-        conn.close()
-
-        return redirect(url_for("energy_summary"))
-
-    return render_template("energy.html")
-
-@app.route("/email-energy", methods=["POST"])
-def email_energy():
-    email = request.form["email"]
-
-    conn = get_db_connection()
-    totals = conn.execute(
-        "SELECT SUM(daily_kwh) AS daily, SUM(monthly_kwh) AS monthly FROM energy_usage"
-    ).fetchone()
-    conn.close()
-
-    body = f"""
-Energy Usage Summary
-
-Daily usage: {round(totals['daily'] or 0, 2)} kWh
-Monthly usage: {round(totals['monthly'] or 0, 2)} kWh
-
-Thank you for using Rolsa Energy Tools.
-"""
-
-    send_email(email, "Your Energy Usage Summary", body)
-    flash("Energy summary emailed successfully")
-
-    return redirect(url_for("energy_summary"))
-
-
-
-@app.route("/energy-summary")
-def energy_summary():
-    conn = get_db_connection()
-    records = conn.execute(
-        "SELECT * FROM energy_usage ORDER BY created_at DESC"
-    ).fetchall()
-
-    totals = conn.execute(
-        """
-        SELECT 
-            SUM(daily_kwh) AS total_daily,
-            SUM(monthly_kwh) AS total_monthly
-        FROM energy_usage
-        """
-    ).fetchone()
-
-    conn.close()
-
-    return render_template(
-        "energy_summary.html",
-        records=records,
-        totals=totals
-    )
-
-@app.route("/email-carbon", methods=["POST"])
-def email_carbon():
-    email = request.form["email"]
-
-    conn = get_db_connection()
-    total = conn.execute(
-        "SELECT SUM(co2_kg) AS total FROM carbon_footprint"
-    ).fetchone()
-    conn.close()
-
-    body = f"""
-Carbon Footprint Summary
-
-Total CO₂ emissions: {round(total['total'] or 0, 2)} kg
-
-Small changes add up. Thank you for tracking your impact.
-"""
-
-    send_email(email, "Your Carbon Footprint Summary", body)
-    flash("Carbon summary emailed successfully")
-
-    return redirect(url_for("carbon_summary"))
-
-
-def send_email(to_email, subject, body):
-    msg = EmailMessage()
-    msg["From"] = EMAIL_ADDRESS
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(body)
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        smtp.send_message(msg)
-
-
-#This setup up the database
-
-
-
-def init_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            phone TEXT,
-            password_hash TEXT NOT NULL
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS energy_usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            appliance TEXT NOT NULL,
-            watts REAL NOT NULL,
-            hours REAL NOT NULL,
-            daily_kwh REAL NOT NULL,
-            monthly_kwh REAL NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-                 
-    
-    """)
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS carbon_footprint (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        activity TEXT NOT NULL,
-        amount REAL NOT NULL,
-        unit TEXT NOT NULL,
-        co2_kg REAL NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-
-
-    conn.commit()
-    conn.close()
-
-
+# ---------------- BOOKING ----------------
 @app.route("/booking", methods=["GET", "POST"])
 def booking():
     if request.method == "POST":
@@ -336,10 +221,8 @@ def booking():
 
         msg = Message(
             subject="Your Booking Confirmation – Rolsa",
-            recipients=[email]
-        )
-
-        msg.body = f"""
+            recipients=[email],
+            body=f"""
 Hi {name},
 
 Your {service} has been successfully booked.
@@ -348,20 +231,53 @@ Date: {date}
 Time: {time}
 
 Thank you for choosing Rolsa.
-We look forward to seeing you.
-
-— Aurora Team
-        """
+"""
+        )
 
         mail.send(msg)
-
         return render_template("booking.html", show_modal=True)
 
     return render_template("booking.html")
 
+# ---------------- DB INIT ----------------
+def init_db():
+    conn = sqlite3.connect(DATABASE)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT UNIQUE,
+            phone TEXT,
+            password_hash TEXT
+        )
+    """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS energy_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appliance TEXT,
+            watts REAL,
+            hours REAL,
+            daily_kwh REAL,
+            monthly_kwh REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS carbon_footprint (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            activity TEXT,
+            amount REAL,
+            unit TEXT,
+            co2_kg REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    conn.close()
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
