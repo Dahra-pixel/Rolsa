@@ -50,29 +50,30 @@ def contact():
 def energy():
     conn = get_db_connection()
     records = conn.execute("SELECT * FROM energy_usage").fetchall()
-    totals = conn.execute("""
+    row = conn.execute("""
         SELECT 
-            SUM(daily_kwh) AS total_daily,
-            SUM(monthly_kwh) AS total_monthly
+            COALESCE(SUM(daily_kwh), 0) AS total_daily,
+            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
         FROM energy_usage
     """).fetchone()
     conn.close()
-    
-    return render_template("energy.html", records=records, totals=totals)
 
+    totals = {
+        "total_daily": float(row["total_daily"]),
+        "total_monthly": float(row["total_monthly"])
+    } if records else None
+
+    return render_template("energy.html", records=records, totals=totals)
 
 @app.route("/email-energy", methods=["POST"])
 def email_energy_summary():
     conn = get_db_connection()
-
     records = conn.execute("SELECT * FROM energy_usage").fetchall()
     totals = conn.execute("""
-        SELECT 
-            SUM(daily_kwh) AS total_daily,
-            SUM(monthly_kwh) AS total_monthly
+        SELECT SUM(daily_kwh) AS total_daily,
+               SUM(monthly_kwh) AS total_monthly
         FROM energy_usage
     """).fetchone()
-
     conn.close()
 
     body = (
@@ -80,20 +81,14 @@ def email_energy_summary():
         f"Daily Total: {round(totals['total_daily'] or 0, 2)} kWh\n"
         f"Monthly Total: {round(totals['total_monthly'] or 0, 2)} kWh\n\n"
     )
-
     for r in records:
-        body += (
-            f"{r['appliance']} → "
-            f"{round(r['daily_kwh'], 2)} kWh/day, "
-            f"{round(r['monthly_kwh'], 2)} kWh/month\n"
-        )
+        body += f"{r['appliance']} → {round(r['daily_kwh'],2)} kWh/day, {round(r['monthly_kwh'],2)} kWh/month\n"
 
     msg = Message(
         subject="Your Energy Usage Summary",
         recipients=[app.config["MAIL_USERNAME"]],
         body=body
     )
-
     mail.send(msg)
     flash("Energy summary emailed successfully")
     return redirect(url_for("energy"))
@@ -108,60 +103,39 @@ EMISSION_FACTORS = {
 @app.route("/carbon", methods=["GET", "POST"])
 def carbon():
     conn = get_db_connection()
-    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
-    total = conn.execute("SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint").fetchone()
-    conn.close()
-
     if request.method == "POST":
         activity = request.form["activity"]
         amount = float(request.form["amount"])
-
         factor = EMISSION_FACTORS.get(activity, 0)
         co2_kg = amount * factor
-
-        conn = get_db_connection()
         conn.execute("""
             INSERT INTO carbon_footprint (activity, amount, unit, co2_kg)
             VALUES (?, ?, ?, ?)
-        """, (
-            activity,
-            amount,
-            "kWh" if activity == "electricity" else "km",
-            co2_kg
-        ))
+        """, (activity, amount, "kWh" if activity=="electricity" else "km", co2_kg))
         conn.commit()
-        conn.close()
-
         return redirect(url_for("carbon"))
 
+    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
+    total = conn.execute("SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint").fetchone()
+    conn.close()
     return render_template("carbon.html", records=records, total=total)
-
 
 @app.route("/email-carbon", methods=["POST"])
 def email_carbon_summary():
     conn = get_db_connection()
-
     records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
-    total = conn.execute(
-        "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
-    ).fetchone()
-
+    total = conn.execute("SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint").fetchone()
     conn.close()
 
-    body = f"Carbon Footprint Summary\n\nTotal CO₂: {round(total['total_co2'] or 0, 2)} kg\n\n"
-
+    body = f"Carbon Footprint Summary\n\nTotal CO₂: {round(total['total_co2'] or 0,2)} kg\n\n"
     for r in records:
-        body += (
-            f"{r['activity']} - {r['amount']} {r['unit']} → "
-            f"{round(r['co2_kg'], 2)} kg\n"
-        )
+        body += f"{r['activity']} - {r['amount']} {r['unit']} → {round(r['co2_kg'],2)} kg\n"
 
     msg = Message(
         subject="Your Carbon Footprint Summary",
         recipients=[app.config["MAIL_USERNAME"]],
         body=body
     )
-
     mail.send(msg)
     flash("Carbon summary emailed successfully")
     return redirect(url_for("carbon"))
@@ -175,7 +149,6 @@ def register():
     password = request.form["password"]
 
     password_hash = generate_password_hash(password)
-
     conn = get_db_connection()
     try:
         conn.execute("""
@@ -188,61 +161,43 @@ def register():
         flash("Email already registered")
     finally:
         conn.close()
-
     return redirect(url_for("home"))
 
 @app.route("/login", methods=["POST"])
 def login():
     email = request.form["email"]
     password = request.form["password"]
-
     conn = get_db_connection()
-    user = conn.execute(
-        "SELECT * FROM users WHERE email = ?", (email,)
-    ).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     conn.close()
-
     if user and check_password_hash(user["password_hash"], password):
         flash("Logged in successfully")
     else:
         flash("Invalid email or password")
-
     return redirect(url_for("home"))
 
 # ---------------- BOOKING ----------------
 @app.route("/booking", methods=["GET", "POST"])
 def booking():
-    if request.method == "POST":
+    if request.method=="POST":
         name = request.form["name"]
         email = request.form["email"]
         service = request.form["service"]
         date = request.form["date"]
         time = request.form["time"]
-
         msg = Message(
             subject="Your Booking Confirmation – Rolsa",
             recipients=[email],
-            body=f"""
-Hi {name},
-
-Your {service} has been successfully booked.
-
-Date: {date}
-Time: {time}
-
-Thank you for choosing Rolsa.
-"""
+            body=f"Hi {name},\n\nYour {service} has been successfully booked.\nDate: {date}\nTime: {time}\n\nThank you for choosing Rolsa."
         )
-
         mail.send(msg)
+        flash("Booking confirmed, email sent!")
         return render_template("booking.html", show_modal=True)
-
     return render_template("booking.html")
 
 # ---------------- DB INIT ----------------
 def init_db():
     conn = sqlite3.connect(DATABASE)
-
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -252,7 +207,6 @@ def init_db():
             password_hash TEXT
         )
     """)
-
     conn.execute("""
         CREATE TABLE IF NOT EXISTS energy_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -264,7 +218,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     conn.execute("""
         CREATE TABLE IF NOT EXISTS carbon_footprint (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,11 +228,10 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     conn.commit()
     conn.close()
 
 # ---------------- RUN ----------------
-if __name__ == "__main__":
+if __name__=="__main__":
     init_db()
     app.run(debug=True)

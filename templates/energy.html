@@ -1,34 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
+<h1>Energy Usage</h1>
 
-<section class="page-section">
-  <h2>Energy Summary</h2>
+{% if totals %}
+<p>Total Daily: {{ totals.total_daily }} kWh</p>
+<p>Total Monthly: {{ totals.total_monthly }} kWh</p>
+{% else %}
+<p>No energy data yet.</p>
+{% endif %}
 
-  <div class="summary-box">
-    <p><strong>Total Daily Usage:</strong> {{ totals.total_daily | round(2) }} kWh</p>
-    <p><strong>Total Monthly Usage:</strong> {{ totals.total_monthly | round(2) }} kWh</p>
-  </div>
+<table>
+  <tr>
+    <th>Appliance</th><th>Daily kWh</th><th>Monthly kWh</th>
+  </tr>
+  {% for r in records %}
+  <tr>
+    <td>{{ r.appliance }}</td>
+    <td>{{ r.daily_kwh }}</td>
+    <td>{{ r.monthly_kwh }}</td>
+  </tr>
+  {% endfor %}
+</table>
 
-  <table class="energy-table">
-    <tr>
-      <th>Appliance</th>
-      <th>Daily (kWh)</th>
-      <th>Monthly (kWh)</th>
-    </tr>
-    {% for row in records %}
-    <tr>
-      <td>{{ row.appliance }}</td>
-      <td>{{ row.daily_kwh | round(2) }}</td>
-      <td>{{ row.monthly_kwh | round(2) }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-
-  <!-- Email summary button -->
-  <form method="POST" action="{{ url_for('email_energy_summary') }}">
-    <button type="submit" class="btn-primary">Email Energy Summary</button>
-  </form>
-
-</section>
-
+<form method="POST" action="{{ url_for('email_energy_summary') }}">
+    <button type="submit">Email Energy Summary</button>
+</form>
 {% endblock %}
