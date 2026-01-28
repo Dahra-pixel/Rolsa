@@ -50,7 +50,53 @@
       </div>
     
     </div>
+  
 
+  <script>
+  emailjs.init({ publicKey: "PUBLIC_KEY" }); // your public key
+
+  function makeTempPassword(length = 12) {
+    // simple strong-ish demo password generator
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    let out = "";
+    for (let i = 0; i < length; i++) {
+      out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+  }
+
+  window.addEventListener("load", () => {
+    const form = document.getElementById("energy-form");
+    if (!form) return;
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      // Generate temp password and inject into form
+      const pwd = makeTempPassword(12);
+      document.getElementById("temp_password").value = pwd;
+
+      // Add product name if you want it in the email
+      // (or add <input type="hidden" name="product_name" value="{{product['name']}}"> in HTML)
+      // For demo, we can set it dynamically if a hidden exists:
+      const productHidden = form.querySelector('input[name="product_name"]');
+      if (productHidden) productHidden.value = "{{ product['name'] }}";
+
+      // Send email using EmailJS
+      emailjs.sendForm("SERVICE_KEY", "TEMPLATE_ID", form)
+        .then(() => {
+          console.log("EmailJS SUCCESS");
+
+          // After email is sent, submit to Flask to create account + store calc
+          form.submit();
+        })
+        .catch((err) => {
+          console.error("EmailJS FAILED:", err);
+          alert("Email failed to send. Check console.");
+        });
+    });
+  });
+</script>
 
 
 

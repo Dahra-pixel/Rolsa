@@ -2,21 +2,37 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from flask import Flask, render_template, request, redirect, session, abort, url_for
+import sqlite3
+from datetime import datetime
+import os
+import secrets
+import requests
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+
 
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
 app.secret_key = "super_secret_key_change_later"
 DATABASE = "database.db"
+app.run(host='0.0.0.0', port=5000, debug=True) #For other people to test
 
 # ---------------- MAIL CONFIG ----------------
-app.config["MAIL_SERVER"] = "smtp.gmail.com"
-app.config["MAIL_PORT"] = 587
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = "your_email@gmail.com"
-app.config["MAIL_PASSWORD"] = "your_app_password"
-app.config["MAIL_DEFAULT_SENDER"] = "your_email@gmail.com"
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'yourgmail@gmail.com'
+app.config['MAIL_PASSWORD'] = 'the_app_password_not_your_real_one'
+app.config['MAIL_DEFAULT_SENDER'] = 'yourgmail@gmail.com'
+
+
+
+
+
 
 mail = Mail(app)
+
 
 # ---------------- DATABASE ----------------
 def get_db_connection():
@@ -49,16 +65,26 @@ def contact():
 @app.route("/energy")
 def energy():
     conn = get_db_connection()
-    records = conn.execute("SELECT * FROM energy_usage").fetchall()
+
+    records = conn.execute(
+        "SELECT * FROM energy_usage"
+    ).fetchall()
+
     totals = conn.execute("""
         SELECT 
-            SUM(daily_kwh) AS total_daily,
-            SUM(monthly_kwh) AS total_monthly
+            COALESCE(SUM(daily_kwh), 0) AS total_daily,
+            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
         FROM energy_usage
     """).fetchone()
+
     conn.close()
-    
-    return render_template("energy.html", records=records, totals=totals)
+
+    return render_template(
+        "energy.html",
+        records=records,
+        totals=totals
+    )
+
 
 
 @app.route("/email-energy", methods=["POST"])
@@ -83,7 +109,7 @@ def email_energy_summary():
 
     for r in records:
         body += (
-            f"{r['appliance']} → "
+            f"{r['appliance']} "
             f"{round(r['daily_kwh'], 2)} kWh/day, "
             f"{round(r['monthly_kwh'], 2)} kWh/month\n"
         )
@@ -91,6 +117,7 @@ def email_energy_summary():
     msg = Message(
         subject="Your Energy Usage Summary",
         recipients=[app.config["MAIL_USERNAME"]],
+
         body=body
     )
 
@@ -148,11 +175,11 @@ def email_carbon_summary():
 
     conn.close()
 
-    body = f"Carbon Footprint Summary\n\nTotal CO₂: {round(total['total_co2'] or 0, 2)} kg\n\n"
+    body = f"Carbon Footprint Summary\n\nTotal CO2S: {round(total['total_co2'] or 0, 2)} kg\n\n"
 
     for r in records:
         body += (
-            f"{r['activity']} - {r['amount']} {r['unit']} → "
+            f"{r['activity']} - {r['amount']} {r['unit']} : "
             f"{round(r['co2_kg'], 2)} kg\n"
         )
 
@@ -220,18 +247,16 @@ def booking():
         time = request.form["time"]
 
         msg = Message(
-            subject="Your Booking Confirmation – Rolsa",
+            subject="Your Booking Confirmation - Rolsa",
             recipients=[email],
-            body=f"""
-Hi {name},
+            body=(
+    f"Hi {name},\n\n"
+    f"Your {service} has been successfully booked.\n\n"
+    f"Date: {date}\n"
+    f"Time: {time}\n\n"
+    f"Thank you for choosing Rolsa."
+)
 
-Your {service} has been successfully booked.
-
-Date: {date}
-Time: {time}
-
-Thank you for choosing Rolsa.
-"""
         )
 
         mail.send(msg)

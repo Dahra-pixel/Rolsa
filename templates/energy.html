@@ -4,30 +4,62 @@
 <section class="page-section">
   <h2>Energy Summary</h2>
 
-  <div class="summary-box">
-    <p><strong>Total Daily Usage:</strong> {{ totals.total_daily | round(2) }} kWh</p>
-    <p><strong>Total Monthly Usage:</strong> {{ totals.total_monthly | round(2) }} kWh</p>
-  </div>
+   <form id="energy-form" method="POST" action="{{ url_for('product', slug=product['slug']) }}">
+        <form id="energy-form" method="POST">
 
-  <table class="energy-table">
-    <tr>
-      <th>Appliance</th>
-      <th>Daily (kWh)</th>
-      <th>Monthly (kWh)</th>
-    </tr>
-    {% for row in records %}
-    <tr>
-      <td>{{ row.appliance }}</td>
-      <td>{{ row.daily_kwh | round(2) }}</td>
-      <td>{{ row.monthly_kwh | round(2) }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+          <!-- Helpful context to include in the email -->
+          <input type="hidden" name="product_name" value="{{ product['name'] }}">
+          <input type="hidden" name="product_slug" value="{{ product['slug'] }}">
 
-  <!-- Email summary button -->
-  <form method="POST" action="{{ url_for('email_energy_summary') }}">
-    <button type="submit" class="btn-primary">Email Energy Summary</button>
-  </form>
+          <div class="mb-2">
+            <label class="form-label">Email (to receive results)</label>
+            <input type="email" name="email" class="form-control" required>
+            <input type="hidden" name="temp_password" id="temp_password">
+
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Electricity usage (kWh per month)</label>
+            <input type="number" step="0.01" name="electricity_kwh" class="form-control" required>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Gas usage (kWh per month)</label>
+            <input type="number" step="0.01" name="gas_kwh" class="form-control" value="0">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Home size</label>
+            <select name="home_size" class="form-select">
+              <option>Small</option>
+              <option>Medium</option>
+              <option>Large</option>
+            </select>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Number of occupants</label>
+            <input type="number" name="occupants" min="1" value="1" class="form-control" required>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">EV charging at home?</label>
+            <select name="ev_charging" class="form-select">
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="smart_home" id="smart_home">
+            <label class="form-check-label" for="smart_home">Smart home devices?</label>
+          </div>
+
+          <button id="energy-submit" type="submit" class="btn btn-success w-100">
+            Calculate Energy & Carbon Footprint
+          </button>
+
+        </form>
 
 </section>
 
