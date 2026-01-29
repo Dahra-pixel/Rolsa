@@ -1,28 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Energy Usage</h1>
 
-{% if totals %}
-<p>Total Daily: {{ totals.total_daily }} kWh</p>
-<p>Total Monthly: {{ totals.total_monthly }} kWh</p>
-{% else %}
-<p>No energy data yet.</p>
-{% endif %}
+<div class="page-section">
+    <h1 class="page_heading_text">Energy Usage</h1>
 
-<table>
-  <tr>
-    <th>Appliance</th><th>Daily kWh</th><th>Monthly kWh</th>
-  </tr>
-  {% for r in records %}
-  <tr>
-    <td>{{ r.appliance }}</td>
-    <td>{{ r.daily_kwh }}</td>
-    <td>{{ r.monthly_kwh }}</td>
-  </tr>
-  {% endfor %}
-</table>
+    <form class="energy-form" method="POST" action="{{ url_for('energy') }}">
+        <input type="text" name="appliance" placeholder="Appliance name" required>
 
-<form method="POST" action="{{ url_for('email_energy_summary') }}">
-    <button type="submit">Email Energy Summary</button>
-</form>
+        <input type="number" step="0.01" name="daily_kwh"
+               placeholder="Daily kWh" required>
+
+        <button class="btn-primary" type="submit">Calculate</button>
+    </form>
+</div>
+
 {% endblock %}

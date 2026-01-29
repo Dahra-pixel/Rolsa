@@ -9,12 +9,12 @@ app.secret_key = "super_secret_key_change_later"
 DATABASE = "database.db"
 
 # ---------------- MAIL CONFIG ----------------
-app.config["MAIL_SERVER"] = "smtp.gmail.com"
-app.config["MAIL_PORT"] = 587
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = "your_email@gmail.com"
-app.config["MAIL_PASSWORD"] = "your_app_password"
-app.config["MAIL_DEFAULT_SENDER"] = "your_email@gmail.com"
+# app.config["MAIL_SERVER"] = "smtp.gmail.com"
+# app.config["MAIL_PORT"] = 587
+# app.config["MAIL_USE_TLS"] = True
+# app.config["MAIL_USERNAME"] = "your_email@gmail.com"
+# app.config["MAIL_PASSWORD"] = "your_app_password"
+# app.config["MAIL_DEFAULT_SENDER"] = "your_email@gmail.com"
 
 mail = Mail(app)
 
@@ -46,52 +46,61 @@ def contact():
     return render_template("contact.html")
 
 # ---------------- ENERGY ----------------
-@app.route("/energy")
+@app.route("/energy", methods=["GET", "POST"])
 def energy():
+    if request.method == "POST":
+        appliance = request.form["appliance"]
+        daily_kwh = float(request.form["daily_kwh"])
+        monthly_kwh = daily_kwh * 30
+
+        conn = get_db_connection()
+        conn.execute(
+            "INSERT INTO energy_usage (appliance, daily_kwh, monthly_kwh) VALUES (?, ?, ?)",
+            (appliance, daily_kwh, monthly_kwh)
+        )
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("energy_summary"))
+
+    # GET request: show form + existing data
     conn = get_db_connection()
-    records = conn.execute("SELECT * FROM energy_usage").fetchall()
-    row = conn.execute("""
-        SELECT 
-            COALESCE(SUM(daily_kwh), 0) AS total_daily,
-            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
-        FROM energy_usage
-    """).fetchone()
+    records = conn.execute(
+        "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
+    ).fetchall()
     conn.close()
 
-    totals = {
-        "total_daily": float(row["total_daily"]),
-        "total_monthly": float(row["total_monthly"])
-    } if records else None
+    return render_template("energy.html", records=records, totals=None)
 
-    return render_template("energy.html", records=records, totals=totals)
 
-@app.route("/email-energy", methods=["POST"])
-def email_energy_summary():
+
+
+@app.route("/energy-summary")
+def energy_summary():
     conn = get_db_connection()
-    records = conn.execute("SELECT * FROM energy_usage").fetchall()
-    totals = conn.execute("""
-        SELECT SUM(daily_kwh) AS total_daily,
-               SUM(monthly_kwh) AS total_monthly
-        FROM energy_usage
-    """).fetchone()
+    records = conn.execute(
+        "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
+    ).fetchall()
     conn.close()
 
-    body = (
-        f"Energy Usage Summary\n\n"
-        f"Daily Total: {round(totals['total_daily'] or 0, 2)} kWh\n"
-        f"Monthly Total: {round(totals['total_monthly'] or 0, 2)} kWh\n\n"
-    )
-    for r in records:
-        body += f"{r['appliance']} → {round(r['daily_kwh'],2)} kWh/day, {round(r['monthly_kwh'],2)} kWh/month\n"
+    if records:
+        total_daily = sum(r["daily_kwh"] for r in records)
+        total_monthly = sum(r["monthly_kwh"] for r in records)
+        totals = {
+            "total_daily": round(total_daily, 2),
+            "total_monthly": round(total_monthly, 2)
+        }
+    else:
+        totals = None
 
-    msg = Message(
-        subject="Your Energy Usage Summary",
-        recipients=[app.config["MAIL_USERNAME"]],
-        body=body
+    return render_template(
+        "energy_summary.html",
+        records=records,
+        totals=totals
     )
-    mail.send(msg)
-    flash("Energy summary emailed successfully")
-    return redirect(url_for("energy"))
+
+
+
 
 # ---------------- CARBON ----------------
 EMISSION_FACTORS = {
@@ -102,43 +111,58 @@ EMISSION_FACTORS = {
 
 @app.route("/carbon", methods=["GET", "POST"])
 def carbon():
-    conn = get_db_connection()
     if request.method == "POST":
         activity = request.form["activity"]
         amount = float(request.form["amount"])
+
         factor = EMISSION_FACTORS.get(activity, 0)
         co2_kg = amount * factor
+
+        unit = "kWh" if activity == "electricity" else "km"
+
+        conn = get_db_connection()
         conn.execute("""
             INSERT INTO carbon_footprint (activity, amount, unit, co2_kg)
             VALUES (?, ?, ?, ?)
-        """, (activity, amount, "kWh" if activity=="electricity" else "km", co2_kg))
+        """, (activity, amount, unit, co2_kg))
         conn.commit()
-        return redirect(url_for("carbon"))
+        conn.close()
 
-    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
-    total = conn.execute("SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint").fetchone()
-    conn.close()
-    return render_template("carbon.html", records=records, total=total)
+        return redirect(url_for("carbon_summary"))
 
-@app.route("/email-carbon", methods=["POST"])
-def email_carbon_summary():
+    # GET request
+    return render_template("carbon.html")
+
+@app.route("/carbon-summary")
+def carbon_summary():
     conn = get_db_connection()
-    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
-    total = conn.execute("SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint").fetchone()
+    records = conn.execute(
+        "SELECT activity, amount, unit, co2_kg FROM carbon_footprint"
+    ).fetchall()
+
+    total = conn.execute(
+        "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
+    ).fetchone()
+
     conn.close()
 
-    body = f"Carbon Footprint Summary\n\nTotal CO₂: {round(total['total_co2'] or 0,2)} kg\n\n"
-    for r in records:
-        body += f"{r['activity']} - {r['amount']} {r['unit']} → {round(r['co2_kg'],2)} kg\n"
+    total_co2 = round(total["total_co2"], 2) if total["total_co2"] else 0.00
 
-    msg = Message(
-        subject="Your Carbon Footprint Summary",
-        recipients=[app.config["MAIL_USERNAME"]],
-        body=body
+    records = [
+    {**dict(r), "co2_kg": round(r["co2_kg"], 2)}
+    for r in records
+    ]
+
+
+    return render_template(
+        "carbon_summary.html",
+        records=records,
+        total=total_co2
     )
-    mail.send(msg)
-    flash("Carbon summary emailed successfully")
-    return redirect(url_for("carbon"))
+
+
+
+
 
 # ---------------- AUTH ----------------
 @app.route("/register", methods=["POST"])
