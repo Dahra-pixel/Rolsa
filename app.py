@@ -16,7 +16,6 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = "super_secret_key_change_later"
 DATABASE = "database.db"
-app.run(host='0.0.0.0', port=5000, debug=True) #For other people to test
 
 # ---------------- MAIL CONFIG ----------------
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -87,43 +86,6 @@ def energy():
 
 
 
-@app.route("/email-energy", methods=["POST"])
-def email_energy_summary():
-    conn = get_db_connection()
-
-    records = conn.execute("SELECT * FROM energy_usage").fetchall()
-    totals = conn.execute("""
-        SELECT 
-            SUM(daily_kwh) AS total_daily,
-            SUM(monthly_kwh) AS total_monthly
-        FROM energy_usage
-    """).fetchone()
-
-    conn.close()
-
-    body = (
-        f"Energy Usage Summary\n\n"
-        f"Daily Total: {round(totals['total_daily'] or 0, 2)} kWh\n"
-        f"Monthly Total: {round(totals['total_monthly'] or 0, 2)} kWh\n\n"
-    )
-
-    for r in records:
-        body += (
-            f"{r['appliance']} "
-            f"{round(r['daily_kwh'], 2)} kWh/day, "
-            f"{round(r['monthly_kwh'], 2)} kWh/month\n"
-        )
-
-    msg = Message(
-        subject="Your Energy Usage Summary",
-        recipients=[app.config["MAIL_USERNAME"]],
-
-        body=body
-    )
-
-    mail.send(msg)
-    flash("Energy summary emailed successfully")
-    return redirect(url_for("energy"))
 
 # ---------------- CARBON ----------------
 EMISSION_FACTORS = {
@@ -164,34 +126,33 @@ def carbon():
     return render_template("carbon.html", records=records, total=total)
 
 
-@app.route("/email-carbon", methods=["POST"])
-def email_carbon_summary():
+@app.route("/summary")
+def summary():
     conn = get_db_connection()
 
-    records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
-    total = conn.execute(
+    carbon_records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
+    carbon_total = conn.execute(
         "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
     ).fetchone()
 
+    energy_records = conn.execute("SELECT * FROM energy_usage").fetchall()
+    energy_totals = conn.execute("""
+        SELECT 
+            COALESCE(SUM(daily_kwh), 0) AS total_daily,
+            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
+        FROM energy_usage
+    """).fetchone()
+
     conn.close()
 
-    body = f"Carbon Footprint Summary\n\nTotal CO2S: {round(total['total_co2'] or 0, 2)} kg\n\n"
-
-    for r in records:
-        body += (
-            f"{r['activity']} - {r['amount']} {r['unit']} : "
-            f"{round(r['co2_kg'], 2)} kg\n"
-        )
-
-    msg = Message(
-        subject="Your Carbon Footprint Summary",
-        recipients=[app.config["MAIL_USERNAME"]],
-        body=body
+    return render_template(
+        "summary.html",
+        carbon_records=carbon_records,
+        carbon_total=carbon_total,
+        energy_records=energy_records,
+        energy_totals=energy_totals
     )
 
-    mail.send(msg)
-    flash("Carbon summary emailed successfully")
-    return redirect(url_for("carbon"))
 
 # ---------------- AUTH ----------------
 @app.route("/register", methods=["POST"])
@@ -230,11 +191,20 @@ def login():
     conn.close()
 
     if user and check_password_hash(user["password_hash"], password):
+        session["user_id"] = user["id"]
+        session["user_name"] = user["name"]   # <-- ADD THIS
         flash("Logged in successfully")
     else:
         flash("Invalid email or password")
 
     return redirect(url_for("home"))
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out")
+    return redirect(url_for("home"))
+
 
 # ---------------- BOOKING ----------------
 @app.route("/booking", methods=["GET", "POST"])
@@ -307,4 +277,6 @@ def init_db():
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+
