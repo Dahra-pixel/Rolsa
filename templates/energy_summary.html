@@ -1,29 +1,86 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="page-section">
-    <h1 class="page_heading_text">Energy Summary</h1>
+<section class="hero" style="background: linear-gradient(135deg, #d9f1c1 0%, #ecf3e4 100%); margin-bottom: 30px;">
+  <div class="hero-text">
+    <h1>Overall Sustainability Summary</h1>
+    <p>Review your household energy use and carbon footprint.</p>
+  </div>
+</section>
 
-    <div class="summary-box">
-        <p><strong>Total Daily:</strong> {{ totals.total_daily }} kWh</p>
-        <p><strong>Total Monthly:</strong> {{ totals.total_monthly }} kWh</p>
+<!-- Carbon Footprint -->
+<section class="page-section">
+  <h3>Carbon Footprint Summary</h3>
+  <div class="summary-cards">
+    <div class="summary-card">
+      <h3>Total CO₂ Emissions</h3>
     </div>
+  </div>
 
+  <div class="table-container">
     <table class="energy-table">
+      <thead>
         <tr>
-            <th>Appliance</th>
-            <th>Daily kWh</th>
-            <th>Monthly kWh</th>
+          <th>Activity</th>
+          <th>Amount</th>
+          <th>CO₂ (kg)</th>
         </tr>
-        {% for r in records %}
+      </thead>
+      <tbody>
+        {% for row in records %}
         <tr>
-            <td>{{ r.appliance }}</td>
-            <td>{{ r.daily_kwh }}</td>
-            <td>{{ r.monthly_kwh }}</td>
+          <td>{{ row.activity }}</td>
+          <td>{{ row.amount }} {{ row.unit }}</td>
+          <td>{{ row.co2_kg }}</td>
         </tr>
         {% endfor %}
+      </tbody>
     </table>
+  </div>
 
-</div>
+  <form method="POST" action="{{ url_for('carbon_summary') }}">
+    <button class="energy-btn mt-3">Email Carbon Summary</button>
+  </form>
+</section>
+
+<!-- Energy Usage -->
+<section class="page-section mt-5">
+  <h3>Energy Usage Summary</h3>
+  <div class="summary-cards">
+    <div class="summary-card">
+      <h3>Total Daily Usage</h3>
+      <p>{{ energy_totals.total_daily | round(2) }} kWh</p>
+    </div>
+    <div class="summary-card">
+      <h3>Total Monthly Usage</h3>
+      <p>{{ energy_totals.total_monthly | round(2) }} kWh</p>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="energy-table">
+      <thead>
+        <tr>
+          <th>Appliance</th>
+          <th>Daily kWh</th>
+          <th>Monthly kWh</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in energy_records %}
+        <tr>
+          <td>{{ row.appliance }}</td>
+          <td>{{ row.daily_kwh | round(2) }}</td>
+          <td>{{ row.monthly_kwh | round(2) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="POST" action="{{ url_for('email_energy_summary') }}">
+    <button class="energy-btn mt-3">Email Energy Summary</button>
+  </form>
+</section>
 
 {% endblock %}

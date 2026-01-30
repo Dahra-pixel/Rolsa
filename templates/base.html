@@ -85,23 +85,54 @@
                 </div>
         
                 <form method="POST" action="{{ url_for('login') }}">
+                    <input type="hidden" name="next" value="{{ request.full_path }}">
+                    
                     <div class="modal-body">
-            
                         <div class="mb-3">
                             <label class="form-label">Email</label>
                             <input name="email" type="email" class="form-control" required>
                         </div>
-            
+                
                         <div class="mb-3">
                             <label class="form-label">Password</label>
                             <input name="password" type="password" class="form-control" required>
                         </div>
-            
+                
+                        <p class="mt-2 text-center">
+                            Don't have an account? 
+                            <a href="#" data-bs-toggle="modal" data-bs-target="#registerModal" data-bs-dismiss="modal">
+                                Register here
+                            </a>
+                        </p>
                     </div>
-            
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Login</button>
+                
+                    <div class="modal-footer justify-content-center">
+                        <button type="submit" class="btn btn-success w-50">
+                            Login
+                        </button>
                     </div>
+                </form>
+                
+                
+                
+
+                <script>
+                    window.addEventListener("DOMContentLoaded", () => {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const loginRequired = urlParams.get("login_required");
+                        const loginError = urlParams.get("login_error");
+                    
+                        if (loginRequired || loginError) {
+                            const modal = new bootstrap.Modal(document.getElementById("loginModal"));
+                            modal.show();
+                        }
+                    });
+                    </script>
+                    
+                
+
+
+
                 </form>
     
             </div>
@@ -156,9 +187,36 @@
     </div>
 
 
-    <footer>
-        ...
+    <footer class="footer">
+        <div class="footer-container">
+            <!-- Logo -->
+            <div class="footer-logo-section">
+                <a href="{{ url_for('home') }}">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Aurora Logo">
+                </a>
+            </div>
+    
+            <!-- Quick Links -->
+            <div class="footer-links">
+                <a href="{{ url_for('products') }}">Products</a>
+                <a href="{{ url_for('news') }}">News</a>
+                <a href="{{ url_for('energy') }}">Energy</a>
+                <a href="{{ url_for('booking') }}">Bookings</a>
+            </div>
+    
+            <!-- Social Icons -->
+            <div class="footer-social">
+                <a href="https://www.facebook.com/" target="_blank">FB</a>
+                <a href="https://www.twitter.com/" target="_blank">TW</a>
+                <a href="https://www.instagram.com/" target="_blank">IG</a>
+            </div>
+        </div>
+    
+        <div class="footer-bottom">
+            &copy; 2026 Aurora
+        </div>
     </footer>
+    
 
 </body>
 </html>

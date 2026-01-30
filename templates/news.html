@@ -1,74 +1,59 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page_heading_text">
-    <h1>What's going on in Rolsa? </h1>
-</div>
 
-<div class="news_gallery">
+<!-- Hero Section -->
+<section class="hero" style="background: linear-gradient(135deg, #ecf3e4 0%, #d9f1c1 100%); margin-bottom: 30px;">
+  <div class="hero-text">
+    <h1>What’s going on at Rolsa?</h1>
+    <p>Updates, insights, and sustainability stories that matter.</p>
+  </div>
+  <div class="hero-image">
+    <img src="{{ url_for('static', filename='images/Sus_banner.jpg') }}" alt="Sustainability Banner">
+  </div>
+</section>
 
-    <div class="news_item">
-        <img src="{{ url_for('static', filename='images/dam.jpg') }}" alt="Dam">
-    
-        <div class="overlay"></div>
-    
-        <div class="news_text">
-            <h2>Green energy</h2>
-            <p>Green energy products currently on the market</p>
-        </div>
-    </div>
-    
-    
-</div>
+<!-- News Grid -->
+<section class="page-section news-page">
+  <div class="news-grid">
 
-<div class="news_gallery">
+    <article class="news-item">
+      <img src="{{ url_for('static', filename='images/dam.jpg') }}" alt="Green energy">
+      <div class="overlay"></div>
+      <div class="news-text">
+        <h2>Green energy</h2>
+        <p>Green energy products currently on the market</p>
+      </div>
+    </article>
 
-    <div class="news_item">
-        <img src="{{ url_for('static', filename='images/dam.jpg') }}" alt="Dam">
-    
-        <div class="overlay"></div>
-    
-        <div class="news_text">
-            <h2>Carbon footprint</h2>
-            <p>How to reduce your carbon footprint</p>
-        </div>
-    </div>
-    
-    
-</div>
+    <article class="news-item">
+      <img src="{{ url_for('static', filename='images/solar_panel.jpg') }}" alt="Carbon footprint">
+      <div class="overlay"></div>
+      <div class="news-text">
+        <h2>Carbon footprint</h2>
+        <p>How to reduce your carbon footprint</p>
+      </div>
+    </article>
 
+    <article class="news-item">
+      <img src="{{ url_for('static', filename='images/wind-vane.jpg') }}" alt="Hydroelectric dams">
+      <div class="overlay"></div>
+      <div class="news-text">
+        <h2>Hydroelectric dams</h2>
+        <p>How hydroelectric systems shape sustainable energy</p>
+      </div>
+    </article>
 
-<div class="news_gallery">
+    <article class="news-item">
+      <img src="{{ url_for('static', filename='images/green-energy.jpg') }}" alt="Sustainable infrastructure">
+      <div class="overlay"></div>
+      <div class="news-text">
+        <h2>Sustainable infrastructure</h2>
+        <p>Why modern infrastructure matters for clean energy</p>
+      </div>
+    </article>
 
-    <div class="news_item">
-        <img src="{{ url_for('static', filename='images/dam.jpg') }}" alt="Dam">
-    
-        <div class="overlay"></div>
-    
-        <div class="news_text">
-            <h2>Dams</h2>
-            <p>How hydroelectric systems shape sustainable energy</p>
-        </div>
-    </div>
-    
-    
-</div>
-
-
-<div class="news_gallery">
-
-    <div class="news_item">
-        <img src="{{ url_for('static', filename='images/dam.jpg') }}" alt="Dam">
-    
-        <div class="overlay"></div>
-    
-        <div class="news_text">
-            <h2>Dams</h2>
-            <p>How hydroelectric systems shape sustainable energy</p>
-        </div>
-    </div>
-    
-    
-</div>
+  </div>
+</section>
 
 {% endblock %}

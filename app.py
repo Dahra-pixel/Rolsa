@@ -1,15 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
-from flask import Flask, render_template, request, redirect, session, abort, url_for
-import sqlite3
-from datetime import datetime
-import os
-import secrets
-import requests
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
 
 
 # ---------------- APP SETUP ----------------
@@ -17,29 +8,7 @@ app = Flask(__name__)
 app.secret_key = "super_secret_key_change_later"
 DATABASE = "database.db"
 
-# ---------------- MAIL CONFIG ----------------
-<<<<<<< HEAD
-# app.config["MAIL_SERVER"] = "smtp.gmail.com"
-# app.config["MAIL_PORT"] = 587
-# app.config["MAIL_USE_TLS"] = True
-# app.config["MAIL_USERNAME"] = "your_email@gmail.com"
-# app.config["MAIL_PASSWORD"] = "your_app_password"
-# app.config["MAIL_DEFAULT_SENDER"] = "your_email@gmail.com"
-=======
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'yourgmail@gmail.com'
-app.config['MAIL_PASSWORD'] = 'the_app_password_not_your_real_one'
-app.config['MAIL_DEFAULT_SENDER'] = 'yourgmail@gmail.com'
 
-
-
-
-
->>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
-
-mail = Mail(app)
 
 
 # ---------------- DATABASE ----------------
@@ -72,11 +41,22 @@ def contact():
 # ---------------- ENERGY ----------------
 @app.route("/energy", methods=["GET", "POST"])
 def energy():
-<<<<<<< HEAD
     if request.method == "POST":
-        appliance = request.form["appliance"]
-        daily_kwh = float(request.form["daily_kwh"])
-        monthly_kwh = daily_kwh * 30
+        appliance = request.form.get("appliance")
+        daily_kwh = request.form.get("daily_kwh")
+
+        # validate fields
+        if not appliance or not daily_kwh:
+            flash("Please fill in all fields")
+            return redirect(url_for("energy"))
+
+        try:
+            daily_kwh = float(daily_kwh)
+        except ValueError:
+            flash("Daily kWh must be a number")
+            return redirect(url_for("energy"))
+
+        monthly_kwh = round(daily_kwh * 30, 2)
 
         conn = get_db_connection()
         conn.execute(
@@ -86,18 +66,17 @@ def energy():
         conn.commit()
         conn.close()
 
+        flash("Energy usage recorded successfully")
         return redirect(url_for("energy_summary"))
 
-    # GET request: show form + existing data
+    # GET request: just show form and existing records
     conn = get_db_connection()
     records = conn.execute(
         "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
     ).fetchall()
     conn.close()
 
-    return render_template("energy.html", records=records, totals=None)
-
-
+    return render_template("energy.html", records=records)
 
 
 @app.route("/energy-summary")
@@ -106,17 +85,15 @@ def energy_summary():
     records = conn.execute(
         "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
     ).fetchall()
-    conn.close()
 
-    if records:
-        total_daily = sum(r["daily_kwh"] for r in records)
-        total_monthly = sum(r["monthly_kwh"] for r in records)
-        totals = {
-            "total_daily": round(total_daily, 2),
-            "total_monthly": round(total_monthly, 2)
-        }
-    else:
-        totals = None
+    totals = conn.execute("""
+        SELECT 
+            ROUND(SUM(daily_kwh), 2) AS total_daily,
+            ROUND(SUM(monthly_kwh), 2) AS total_monthly
+        FROM energy_usage
+    """).fetchone()
+
+    conn.close()
 
     return render_template(
         "energy_summary.html",
@@ -125,32 +102,6 @@ def energy_summary():
     )
 
 
-
-=======
-    conn = get_db_connection()
-
-    records = conn.execute(
-        "SELECT * FROM energy_usage"
-    ).fetchall()
-
-    totals = conn.execute("""
-        SELECT 
-            COALESCE(SUM(daily_kwh), 0) AS total_daily,
-            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
-        FROM energy_usage
-    """).fetchone()
-
-    conn.close()
-
-    return render_template(
-        "energy.html",
-        records=records,
-        totals=totals
-    )
-
-
-
->>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
 
 # ---------------- CARBON ----------------
 EMISSION_FACTORS = {
@@ -166,8 +117,7 @@ def carbon():
         amount = float(request.form["amount"])
 
         factor = EMISSION_FACTORS.get(activity, 0)
-        co2_kg = amount * factor
-
+        co2_kg = round(amount * factor, 2)
         unit = "kWh" if activity == "electricity" else "km"
 
         conn = get_db_connection()
@@ -180,144 +130,139 @@ def carbon():
 
         return redirect(url_for("carbon_summary"))
 
-    # GET request
     return render_template("carbon.html")
 
-<<<<<<< HEAD
 @app.route("/carbon-summary")
 def carbon_summary():
-=======
-
-@app.route("/summary")
-def summary():
->>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
     conn = get_db_connection()
+
     records = conn.execute(
-        "SELECT activity, amount, unit, co2_kg FROM carbon_footprint"
+        "SELECT activity, amount, unit, ROUND(co2_kg, 2) AS co2_kg FROM carbon_footprint"
     ).fetchall()
 
-<<<<<<< HEAD
     total = conn.execute(
-=======
-    carbon_records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
-    carbon_total = conn.execute(
->>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
-        "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
+        "SELECT ROUND(SUM(co2_kg), 2) AS total_co2 FROM carbon_footprint"
     ).fetchone()
 
-    energy_records = conn.execute("SELECT * FROM energy_usage").fetchall()
-    energy_totals = conn.execute("""
-        SELECT 
-            COALESCE(SUM(daily_kwh), 0) AS total_daily,
-            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
-        FROM energy_usage
-    """).fetchone()
-
     conn.close()
-
-<<<<<<< HEAD
-    total_co2 = round(total["total_co2"], 2) if total["total_co2"] else 0.00
-
-    records = [
-    {**dict(r), "co2_kg": round(r["co2_kg"], 2)}
-    for r in records
-    ]
-
 
     return render_template(
         "carbon_summary.html",
         records=records,
-        total=total_co2
+        total=total["total_co2"] or 0
     )
-
-
-
-
-=======
-    return render_template(
-        "summary.html",
-        carbon_records=carbon_records,
-        carbon_total=carbon_total,
-        energy_records=energy_records,
-        energy_totals=energy_totals
-    )
-
->>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
 
 # ---------------- AUTH ----------------
 @app.route("/register", methods=["POST"])
 def register():
-    name = request.form["name"]
-    email = request.form["email"]
-    phone = request.form["phone"]
-    password = request.form["password"]
-
-    password_hash = generate_password_hash(password)
     conn = get_db_connection()
     try:
         conn.execute("""
             INSERT INTO users (name, email, phone, password_hash)
             VALUES (?, ?, ?, ?)
-        """, (name, email, phone, password_hash))
+        """, (
+            request.form["name"],
+            request.form["email"],
+            request.form["phone"],
+            generate_password_hash(request.form["password"])
+        ))
         conn.commit()
         flash("Account created successfully")
     except sqlite3.IntegrityError:
         flash("Email already registered")
     finally:
         conn.close()
+
     return redirect(url_for("home"))
 
+# Show login form
 @app.route("/login", methods=["POST"])
 def login():
     email = request.form["email"]
     password = request.form["password"]
+    next_page = request.form.get("next") or url_for("home")
+
     conn = get_db_connection()
-    user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    user = conn.execute(
+        "SELECT * FROM users WHERE email=?", (email,)
+    ).fetchone()
     conn.close()
+
     if user and check_password_hash(user["password_hash"], password):
         session["user_id"] = user["id"]
-        session["user_name"] = user["name"]   # <-- ADD THIS
-        flash("Logged in successfully")
+        session["user_name"] = user["name"]
+        flash("Logged in successfully", "success")
+        # Redirect WITHOUT any login_required param
+        return redirect(next_page.split("?")[0])
     else:
-        flash("Invalid email or password")
-    return redirect(url_for("home"))
+        flash("Invalid email or password", "danger")
+        return redirect(f"{next_page}?login_error=1")
+
+
+
+
 
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("You have been logged out")
+    flash("Logged out")
     return redirect(url_for("home"))
 
-
+# ---------------- BOOKING ----------------
 # ---------------- BOOKING ----------------
 @app.route("/booking", methods=["GET", "POST"])
 def booking():
-    if request.method=="POST":
-        name = request.form["name"]
-        email = request.form["email"]
-        service = request.form["service"]
-        date = request.form["date"]
-        time = request.form["time"]
-        msg = Message(
-            subject="Your Booking Confirmation - Rolsa",
-            recipients=[email],
-<<<<<<< HEAD
-            body=f"Hi {name},\n\nYour {service} has been successfully booked.\nDate: {date}\nTime: {time}\n\nThank you for choosing Rolsa."
-=======
-            body=(
-    f"Hi {name},\n\n"
-    f"Your {service} has been successfully booked.\n\n"
-    f"Date: {date}\n"
-    f"Time: {time}\n\n"
-    f"Thank you for choosing Rolsa."
-)
+    if not session.get("user_id"):
+        # Redirect to home with login modal trigger, pass "next" so after login it goes back to booking
+        return redirect(url_for("home", login_required="1", next=request.path))
+    
+    if request.method == "POST":
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO bookings (user_id, service, date, time, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            session["user_id"],
+            request.form["service"],
+            request.form["date"],
+            request.form["time"],
+            request.form.get("notes", "")
+        ))
+        conn.commit()
+        booking_id = cursor.lastrowid  # get the ID of the newly created booking
+        conn.close()
 
->>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
-        )
-        mail.send(msg)
-        flash("Booking confirmed, email sent!")
-        return render_template("booking.html", show_modal=True)
+        # Redirect to confirmation page for this booking
+        return redirect(url_for("booking_confirmation", booking_id=booking_id))
+
     return render_template("booking.html")
+
+
+
+
+
+
+@app.route("/booking-confirmation/<int:booking_id>")
+def booking_confirmation(booking_id):
+    conn = get_db_connection()
+    booking = conn.execute(
+        "SELECT service, date, time, notes FROM bookings WHERE id=?",
+        (booking_id,)
+    ).fetchone()
+    conn.close()
+
+    return render_template(
+        "booking_confirmation.html",
+        service=booking["service"],
+        date=booking["date"],
+        time=booking["time"],
+        notes=booking["notes"]
+    )
+
+
+
+
 
 # ---------------- DB INIT ----------------
 def init_db():
@@ -335,8 +280,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS energy_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             appliance TEXT,
-            watts REAL,
-            hours REAL,
             daily_kwh REAL,
             monthly_kwh REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -352,12 +295,25 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor = conn.cursor()
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS bookings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    service TEXT,
+    date TEXT,
+    time TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
     conn.commit()
     conn.close()
 
 # ---------------- RUN ----------------
-if __name__=="__main__":
+# ---------------- RUN ----------------
+if __name__ == "__main__":
     init_db()
     app.run(host='0.0.0.0', port=5000, debug=True)
-
 
