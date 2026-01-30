@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="page-section">
+  <h2>Overall Sustainability Summary</h2>
+</section>
+
+<!-- ================= CARBON SUMMARY ================= -->
+<section class="page-section">
+  <h3>Carbon Footprint Summary</h3>
+
+  <div class="summary-box">
+    <p><strong>Total CO₂ Emissions:</strong>
+      {{ carbon_total.total_co2 | round(2) }} kg
+    </p>
+  </div>
+
+  <table class="energy-table">
+    <tr>
+      <th>Activity</th>
+      <th>Amount</th>
+      <th>CO₂ (kg)</th>
+    </tr>
+
+    {% for row in carbon_records %}
+    <tr>
+      <td>{{ row.activity }}</td>
+      <td>{{ row.amount }} {{ row.unit }}</td>
+      <td>{{ row.co2_kg | round(2) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <form method="POST" action="{{ url_for('email_carbon_summary') }}">
+    <button class="btn btn-success mt-3">Email Carbon Summary</button>
+  </form>
+</section>
+
+
+<!-- ================= ENERGY SUMMARY ================= -->
+<section class="page-section mt-5">
+  <h3>Energy Usage Summary</h3>
+
+  <div class="summary-box">
+    <p><strong>Total Daily Usage:</strong>
+      {{ energy_totals.total_daily | round(2) }} kWh
+    </p>
+    <p><strong>Total Monthly Usage:</strong>
+      {{ energy_totals.total_monthly | round(2) }} kWh
+    </p>
+  </div>
+
+  <table class="energy-table">
+    <tr>
+      <th>Appliance</th>
+      <th>Daily kWh</th>
+      <th>Monthly kWh</th>
+    </tr>
+
+    {% for row in energy_records %}
+    <tr>
+      <td>{{ row.appliance }}</td>
+      <td>{{ row.daily_kwh | round(2) }}</td>
+      <td>{{ row.monthly_kwh | round(2) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <form method="POST" action="{{ url_for('email_energy_summary') }}">
+    <button class="btn btn-primary mt-3">Email Energy Summary</button>
+  </form>
+</section>
+
+{% endblock %}

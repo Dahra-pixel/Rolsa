@@ -2,6 +2,15 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from flask import Flask, render_template, request, redirect, session, abort, url_for
+import sqlite3
+from datetime import datetime
+import os
+import secrets
+import requests
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+
 
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
@@ -9,14 +18,29 @@ app.secret_key = "super_secret_key_change_later"
 DATABASE = "database.db"
 
 # ---------------- MAIL CONFIG ----------------
+<<<<<<< HEAD
 # app.config["MAIL_SERVER"] = "smtp.gmail.com"
 # app.config["MAIL_PORT"] = 587
 # app.config["MAIL_USE_TLS"] = True
 # app.config["MAIL_USERNAME"] = "your_email@gmail.com"
 # app.config["MAIL_PASSWORD"] = "your_app_password"
 # app.config["MAIL_DEFAULT_SENDER"] = "your_email@gmail.com"
+=======
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'yourgmail@gmail.com'
+app.config['MAIL_PASSWORD'] = 'the_app_password_not_your_real_one'
+app.config['MAIL_DEFAULT_SENDER'] = 'yourgmail@gmail.com'
+
+
+
+
+
+>>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
 
 mail = Mail(app)
+
 
 # ---------------- DATABASE ----------------
 def get_db_connection():
@@ -48,6 +72,7 @@ def contact():
 # ---------------- ENERGY ----------------
 @app.route("/energy", methods=["GET", "POST"])
 def energy():
+<<<<<<< HEAD
     if request.method == "POST":
         appliance = request.form["appliance"]
         daily_kwh = float(request.form["daily_kwh"])
@@ -101,6 +126,31 @@ def energy_summary():
 
 
 
+=======
+    conn = get_db_connection()
+
+    records = conn.execute(
+        "SELECT * FROM energy_usage"
+    ).fetchall()
+
+    totals = conn.execute("""
+        SELECT 
+            COALESCE(SUM(daily_kwh), 0) AS total_daily,
+            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
+        FROM energy_usage
+    """).fetchone()
+
+    conn.close()
+
+    return render_template(
+        "energy.html",
+        records=records,
+        totals=totals
+    )
+
+
+
+>>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
 
 # ---------------- CARBON ----------------
 EMISSION_FACTORS = {
@@ -133,19 +183,39 @@ def carbon():
     # GET request
     return render_template("carbon.html")
 
+<<<<<<< HEAD
 @app.route("/carbon-summary")
 def carbon_summary():
+=======
+
+@app.route("/summary")
+def summary():
+>>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
     conn = get_db_connection()
     records = conn.execute(
         "SELECT activity, amount, unit, co2_kg FROM carbon_footprint"
     ).fetchall()
 
+<<<<<<< HEAD
     total = conn.execute(
+=======
+    carbon_records = conn.execute("SELECT * FROM carbon_footprint").fetchall()
+    carbon_total = conn.execute(
+>>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
         "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
     ).fetchone()
 
+    energy_records = conn.execute("SELECT * FROM energy_usage").fetchall()
+    energy_totals = conn.execute("""
+        SELECT 
+            COALESCE(SUM(daily_kwh), 0) AS total_daily,
+            COALESCE(SUM(monthly_kwh), 0) AS total_monthly
+        FROM energy_usage
+    """).fetchone()
+
     conn.close()
 
+<<<<<<< HEAD
     total_co2 = round(total["total_co2"], 2) if total["total_co2"] else 0.00
 
     records = [
@@ -163,6 +233,16 @@ def carbon_summary():
 
 
 
+=======
+    return render_template(
+        "summary.html",
+        carbon_records=carbon_records,
+        carbon_total=carbon_total,
+        energy_records=energy_records,
+        energy_totals=energy_totals
+    )
+
+>>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
 
 # ---------------- AUTH ----------------
 @app.route("/register", methods=["POST"])
@@ -195,10 +275,19 @@ def login():
     user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     conn.close()
     if user and check_password_hash(user["password_hash"], password):
+        session["user_id"] = user["id"]
+        session["user_name"] = user["name"]   # <-- ADD THIS
         flash("Logged in successfully")
     else:
         flash("Invalid email or password")
     return redirect(url_for("home"))
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out")
+    return redirect(url_for("home"))
+
 
 # ---------------- BOOKING ----------------
 @app.route("/booking", methods=["GET", "POST"])
@@ -210,9 +299,20 @@ def booking():
         date = request.form["date"]
         time = request.form["time"]
         msg = Message(
-            subject="Your Booking Confirmation – Rolsa",
+            subject="Your Booking Confirmation - Rolsa",
             recipients=[email],
+<<<<<<< HEAD
             body=f"Hi {name},\n\nYour {service} has been successfully booked.\nDate: {date}\nTime: {time}\n\nThank you for choosing Rolsa."
+=======
+            body=(
+    f"Hi {name},\n\n"
+    f"Your {service} has been successfully booked.\n\n"
+    f"Date: {date}\n"
+    f"Time: {time}\n\n"
+    f"Thank you for choosing Rolsa."
+)
+
+>>>>>>> 33ccb022bf3681145d7c9e4a1bddf76a26211a92
         )
         mail.send(msg)
         flash("Booking confirmed, email sent!")
@@ -258,4 +358,6 @@ def init_db():
 # ---------------- RUN ----------------
 if __name__=="__main__":
     init_db()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+
