@@ -38,68 +38,95 @@ def news():
 def contact():
     return render_template("contact.html")
 
-# ---------------- ENERGY ----------------
 @app.route("/energy", methods=["GET", "POST"])
 def energy():
     if request.method == "POST":
-        appliance = request.form.get("appliance")
-        daily_kwh = request.form.get("daily_kwh")
+        # ----- ENERGY -----
+        appliance = request.form.get("appliance", "").strip()
+        daily_kwh_raw = request.form.get("daily_kwh", "").strip()
+        electricity_kwh_raw = request.form.get("electricity_kwh", "0").strip()
+        gas_kwh_raw = request.form.get("gas_kwh", "0").strip()
 
-        # validate fields
-        if not appliance or not daily_kwh:
-            flash("Please fill in all fields")
+        # ----- CARBON -----
+        activity = request.form.get("activity", "").strip()  # e.g. Car, Flight
+        amount_raw = request.form.get("amount", "").strip()
+
+        # Validation
+        if not appliance or not daily_kwh_raw or not activity or not amount_raw:
+            flash("Please fill in all required fields.")
             return redirect(url_for("energy"))
 
         try:
-            daily_kwh = float(daily_kwh)
+            daily_kwh = float(daily_kwh_raw)
+            electricity_kwh = float(electricity_kwh_raw)
+            gas_kwh = float(gas_kwh_raw)
+            amount = float(amount_raw)
         except ValueError:
-            flash("Daily kWh must be a number")
+            flash("Please enter valid numbers.")
             return redirect(url_for("energy"))
 
         monthly_kwh = round(daily_kwh * 30, 2)
 
         conn = get_db_connection()
+
+        # Save energy
         conn.execute(
             "INSERT INTO energy_usage (appliance, daily_kwh, monthly_kwh) VALUES (?, ?, ?)",
             (appliance, daily_kwh, monthly_kwh)
         )
+
+        # Simple CO2 calculation (example)
+        co2_kg = 0
+        unit = ""
+        if activity.lower() == "electricity":
+            co2_kg = amount * 0.233
+            unit = "kWh"
+        elif activity.lower() == "car":
+            co2_kg = amount * 0.121
+            unit = "km"
+        elif activity.lower() == "flight":
+            co2_kg = amount * 0.255
+            unit = "km"
+
+        # Save carbon
+        conn.execute(
+            "INSERT INTO carbon_footprint (activity, amount, co2_kg, unit) VALUES (?, ?, ?, ?)",
+            (activity, amount, co2_kg, unit)
+        )
+
         conn.commit()
         conn.close()
 
-        flash("Energy usage recorded successfully")
-        return redirect(url_for("energy_summary"))
+        return redirect(url_for("summary"))  # redirect to summary page
 
-    # GET request: just show form and existing records
-    conn = get_db_connection()
-    records = conn.execute(
-        "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
-    ).fetchall()
-    conn.close()
-
-    return render_template("energy.html", records=records)
+    # GET request -> show form
+    return render_template("energy_carbon.html")
 
 
-@app.route("/energy-summary")
-def energy_summary():
-    conn = get_db_connection()
-    records = conn.execute(
-        "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
-    ).fetchall()
 
-    totals = conn.execute("""
-        SELECT 
-            ROUND(SUM(daily_kwh), 2) AS total_daily,
-            ROUND(SUM(monthly_kwh), 2) AS total_monthly
-        FROM energy_usage
-    """).fetchone()
 
-    conn.close()
 
-    return render_template(
-        "energy_summary.html",
-        records=records,
-        totals=totals
-    )
+# @app.route("/energy-summary")
+# def energy_summary():
+#     conn = get_db_connection()
+#     records = conn.execute(
+#         "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
+#     ).fetchall()
+
+#     totals = conn.execute("""
+#         SELECT 
+#             ROUND(SUM(daily_kwh), 2) AS total_daily,
+#             ROUND(SUM(monthly_kwh), 2) AS total_monthly
+#         FROM energy_usage
+#     """).fetchone()
+
+#     conn.close()
+
+#     return render_template(
+#         "energy_summary.html",
+#         records=records,
+#         totals=totals
+#     )
 
 
 
@@ -128,29 +155,29 @@ def carbon():
         conn.commit()
         conn.close()
 
-        return redirect(url_for("carbon_summary"))
+        return redirect(url_for("summary"))
 
     return render_template("carbon.html")
 
-@app.route("/carbon-summary")
-def carbon_summary():
-    conn = get_db_connection()
+# @app.route("/carbon-summary")
+# def carbon_summary():
+#     conn = get_db_connection()
 
-    records = conn.execute(
-        "SELECT activity, amount, unit, ROUND(co2_kg, 2) AS co2_kg FROM carbon_footprint"
-    ).fetchall()
+#     records = conn.execute(
+#         "SELECT activity, amount, unit, ROUND(co2_kg, 2) AS co2_kg FROM carbon_footprint"
+#     ).fetchall()
 
-    total = conn.execute(
-        "SELECT ROUND(SUM(co2_kg), 2) AS total_co2 FROM carbon_footprint"
-    ).fetchone()
+#     total = conn.execute(
+#         "SELECT ROUND(SUM(co2_kg), 2) AS total_co2 FROM carbon_footprint"
+#     ).fetchone()
 
-    conn.close()
+#     conn.close()
 
-    return render_template(
-        "carbon_summary.html",
-        records=records,
-        total=total["total_co2"] or 0
-    )
+#     return render_template(
+#         "carbon_summary.html",
+#         records=records,
+#         total=total["total_co2"] or 0
+#     )
 
 # ---------------- AUTH ----------------
 @app.route("/register", methods=["POST"])
@@ -188,15 +215,50 @@ def login():
     ).fetchone()
     conn.close()
 
-    if user and check_password_hash(user["password_hash"], password):
+    if not user:
+        flash("No account found with that email. Please register first.", "warning")
+        return redirect(url_for("home", show_register_modal=1))
+
+    if check_password_hash(user["password_hash"], password):
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]
         flash("Logged in successfully", "success")
-        # Redirect WITHOUT any login_required param
         return redirect(next_page.split("?")[0])
     else:
-        flash("Invalid email or password", "danger")
-        return redirect(f"{next_page}?login_error=1")
+        flash("Incorrect password. Try again.", "danger")
+        return redirect(url_for("home", show_login_modal=1))
+
+
+
+
+@app.route("/summary")
+def summary():
+    conn = get_db_connection()
+
+    energy_records = conn.execute(
+        "SELECT appliance, daily_kwh, monthly_kwh FROM energy_usage"
+    ).fetchall()
+    energy_totals = conn.execute(
+        "SELECT SUM(daily_kwh) AS total_daily, SUM(monthly_kwh) AS total_monthly FROM energy_usage"
+    ).fetchone()
+
+    carbon_records = conn.execute(
+        "SELECT activity, amount, co2_kg, unit FROM carbon_footprint"
+    ).fetchall()
+    carbon_total = conn.execute(
+        "SELECT SUM(co2_kg) AS total_co2 FROM carbon_footprint"
+    ).fetchone()
+
+    conn.close()
+
+    return render_template(
+        "summary.html",
+        energy_records=energy_records,
+        energy_totals=energy_totals,
+        carbon_records=carbon_records,
+        carbon_total=carbon_total
+    )
+
 
 
 
@@ -316,4 +378,5 @@ CREATE TABLE IF NOT EXISTS bookings (
 if __name__ == "__main__":
     init_db()
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 

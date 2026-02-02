@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="page-section">
+  <h1>Energy & Carbon Input</h1>
+
+  <form method="POST" class="energy-card">
+
+    <!-- ENERGY -->
+    <h3>Energy Usage</h3>
+    <div class="form-group">
+      <label>Electricity (kWh / month)</label>
+      <input type="number" step="0.01" name="electricity_kwh" required>
+    </div>
+    <div class="form-group">
+      <label>Gas (kWh / month)</label>
+      <input type="number" step="0.01" name="gas_kwh" value="0">
+    </div>
+    <div class="form-group">
+      <label>Appliance</label>
+      <input type="text" name="appliance" required>
+    </div>
+    <div class="form-group">
+      <label>Daily kWh</label>
+      <input type="number" step="0.01" name="daily_kwh" required>
+    </div>
+
+    <!-- CARBON -->
+    <h3>Carbon Footprint</h3>
+    <div class="form-group">
+      <label>Activity</label>
+      <select name="activity" required>
+        <option value="electricity">Electricity (kWh)</option>
+        <option value="car">Car Travel (km)</option>
+        <option value="flight">Flight (km)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Amount</label>
+      <input type="number" step="0.1" name="amount" required>
+    </div>
+
+    <button type="submit" class="energy-btn">Submit</button>
+  </form>
+</section>
+
+{% endblock %}
